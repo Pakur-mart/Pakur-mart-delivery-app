@@ -1,4 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
+import Signup from "./components/signup";
+import { getAvailableOrders, getDeliveryPartner } from "./lib/firestore";
 
 // Types for better TypeScript support
 interface Order {
@@ -40,7 +42,7 @@ const registerServiceWorker = async () => {
     try {
       const registration = await navigator.serviceWorker.register('/sw.js');
       console.log('SW registered successfully');
-      
+
       // Check for updates
       registration.addEventListener('updatefound', () => {
         const newWorker = registration.installing;
@@ -97,7 +99,7 @@ const useNotifications = () => {
 
   const requestPermission = useCallback(async () => {
     if (!('Notification' in window)) return false;
-    
+
     const result = await Notification.requestPermission();
     setPermission(result);
     return result === 'granted';
@@ -124,7 +126,9 @@ export default function App() {
   const [loginCode, setLoginCode] = useState('');
   const [loginError, setLoginError] = useState('');
   const [isOnline, setIsOnline] = useState(navigator.onLine);
-  
+  const [isSignup, setIsSignup] = useState<boolean>(false);
+
+
   const { location } = useGeolocation();
   const { requestPermission, showNotification } = useNotifications();
 
@@ -206,7 +210,7 @@ export default function App() {
     // Network status monitoring
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
-    
+
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
 
@@ -230,27 +234,81 @@ export default function App() {
     return () => clearInterval(interval);
   }, [showNotification]);
 
-  const handleLogin = (e: React.FormEvent) => {
+  useEffect(() => {
+    const autoLogin = async () => {
+      const saved = localStorage.getItem('isLoggedIn');
+      const savedId = localStorage.getItem('employeeCode');
+
+      if (saved === 'true' && savedId) {
+        const user = await getDeliveryPartner(savedId);
+
+        if (user) {
+          setIsLoggedIn(true);
+
+          showNotification('Welcome Back!', {
+            body: `Hello ${user.name}, you are online`
+          });
+        } else {
+          localStorage.removeItem('isLoggedIn');
+          localStorage.removeItem('employeeCode');
+        }
+      }
+    };
+
+    autoLogin();
+  }, []);
+
+  useEffect(() => {
+    console.log("herre")
+    const unsubscribe = getAvailableOrders((orders) => {
+      console.log("Orders:", orders);
+    });
+
+    // Stop listening when component unmounts
+    return () => unsubscribe();
+  }, []);
+
+
+
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (loginCode.trim() === 'DELIVERY2025') {
-      setIsLoggedIn(true);
-      setLoginError('');
-      showNotification('Welcome Back!', {
-        body: 'You are now online and ready to accept orders'
-      });
-    } else {
-      setLoginError('Invalid employee code. Use: DELIVERY2025');
+
+
+    const user = await getDeliveryPartner(loginCode.trim());
+
+
+    if (!user) {
+      setLoginError('Invalid employee code');
+      return;
     }
+
+    // Save login session
+    localStorage.setItem('isLoggedIn', 'true');
+    localStorage.setItem('employeeCode', user.id);
+
+    setIsLoggedIn(true);
+    setLoginError('');
+
+    showNotification('Welcome Back!', {
+      body: `Hello ${user.name}, you are now online and ready to accept orders`
+    });
   };
 
-  const handleLogout = () => {
+
+  const handleLogout = async () => {
+    const partnerId = localStorage.getItem('employeeCode');
+
+    localStorage.removeItem('isLoggedIn');
+    localStorage.removeItem('employeeCode');
+
+
     setIsLoggedIn(false);
     setLoginCode('');
     setLoginError('');
   };
 
   const acceptOrder = (orderId: string) => {
-    setOrders(prev => prev.map(order => 
+    setOrders(prev => prev.map(order =>
       order.id === orderId ? { ...order, status: 'accepted' } : order
     ));
     showNotification('Order Accepted!', {
@@ -282,164 +340,189 @@ export default function App() {
 
   // Login Screen
   if (!isLoggedIn) {
-    return (
-      <div style={{
-        minHeight: '100vh',
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '20px',
-        fontFamily: "'Open Sans', -apple-system, BlinkMacSystemFont, sans-serif"
-      }}>
+    if (!isSignup) {
+      return (
         <div style={{
-          background: 'rgba(255, 255, 255, 0.95)',
-          backdropFilter: 'blur(20px)',
-          padding: '40px',
-          borderRadius: '20px',
-          boxShadow: '0 20px 40px rgba(0,0,0,0.1)',
-          width: '100%',
-          maxWidth: '400px',
-          border: '1px solid rgba(255,255,255,0.2)'
+          minHeight: '100vh',
+          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '20px',
+          fontFamily: "'Open Sans', -apple-system, BlinkMacSystemFont, sans-serif"
         }}>
-          <div style={{ textAlign: 'center', marginBottom: '30px' }}>
-            <div style={{
-              width: '80px',
-              height: '80px',
-              background: 'linear-gradient(135deg, #FF6B35, #FF8C42)',
-              borderRadius: '20px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              margin: '0 auto 20px',
-              fontSize: '36px',
-              boxShadow: '0 10px 30px rgba(255, 107, 53, 0.3)'
-            }}>
-              🚚
-            </div>
-            <h1 style={{ margin: '0 0 10px', color: '#2d3748', fontSize: '28px', fontWeight: '700' }}>
-              Bolpur Mart
-            </h1>
-            <p style={{ margin: 0, color: '#718096', fontSize: '16px' }}>Delivery Partner Portal</p>
-          </div>
-
-          {!isOnline && (
-            <div style={{
-              background: '#fed7d7',
-              border: '1px solid #feb2b2',
-              color: '#c53030',
-              padding: '12px',
-              borderRadius: '8px',
-              marginBottom: '20px',
-              textAlign: 'center',
-              fontSize: '14px'
-            }}>
-              ⚠️ You're offline. Some features may be limited.
-            </div>
-          )}
-
-          {loginError && (
-            <div style={{
-              background: '#fed7d7',
-              border: '1px solid #feb2b2',
-              color: '#c53030',
-              padding: '12px',
-              borderRadius: '8px',
-              marginBottom: '20px',
-              fontSize: '14px'
-            }}>
-              {loginError}
-            </div>
-          )}
-
-          <form onSubmit={handleLogin}>
-            <div style={{ marginBottom: '20px' }}>
-              <label style={{
-                display: 'block',
-                fontSize: '14px',
-                fontWeight: '600',
-                marginBottom: '8px',
-                color: '#2d3748'
+          <div style={{
+            background: 'rgba(255, 255, 255, 0.95)',
+            backdropFilter: 'blur(20px)',
+            padding: '40px',
+            borderRadius: '20px',
+            boxShadow: '0 20px 40px rgba(0,0,0,0.1)',
+            width: '100%',
+            maxWidth: '400px',
+            border: '1px solid rgba(255,255,255,0.2)'
+          }}>
+            <div style={{ textAlign: 'center', marginBottom: '30px' }}>
+              <div style={{
+                width: '80px',
+                height: '80px',
+                background: 'linear-gradient(135deg, #FF6B35, #FF8C42)',
+                borderRadius: '20px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                margin: '0 auto 20px',
+                fontSize: '36px',
+                boxShadow: '0 10px 30px rgba(255, 107, 53, 0.3)'
               }}>
-                Employee Secret Code
-              </label>
-              <input
-                type="text"
-                value={loginCode}
-                onChange={(e) => setLoginCode(e.target.value.toUpperCase())}
-                placeholder="Enter your employee code"
-                required
+                🚚
+              </div>
+              <h1 style={{ margin: '0 0 10px', color: '#2d3748', fontSize: '28px', fontWeight: '700' }}>
+                Bolpur Mart
+              </h1>
+              <p style={{ margin: 0, color: '#718096', fontSize: '16px' }}>Delivery Partner Portal</p>
+            </div>
+
+            {!isOnline && (
+              <div style={{
+                background: '#fed7d7',
+                border: '1px solid #feb2b2',
+                color: '#c53030',
+                padding: '12px',
+                borderRadius: '8px',
+                marginBottom: '20px',
+                textAlign: 'center',
+                fontSize: '14px'
+              }}>
+                ⚠️ You're offline. Some features may be limited.
+              </div>
+            )}
+
+            {loginError && (
+              <div style={{
+                background: '#fed7d7',
+                border: '1px solid #feb2b2',
+                color: '#c53030',
+                padding: '12px',
+                borderRadius: '8px',
+                marginBottom: '20px',
+                fontSize: '14px'
+              }}>
+                {loginError}
+              </div>
+            )}
+
+            <form onSubmit={handleLogin}>
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{
+                  display: 'block',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  marginBottom: '8px',
+                  color: '#2d3748'
+                }}>
+                  Employee Secret Code
+                </label>
+                <input
+                  type="text"
+                  value={loginCode}
+                  onChange={(e) => setLoginCode(e.target.value)}
+                  placeholder="Enter your employee code"
+                  required
+                  style={{
+                    width: '100%',
+                    padding: '14px 16px',
+                    border: '2px solid #e2e8f0',
+                    borderRadius: '10px',
+                    fontSize: '16px',
+                    boxSizing: 'border-box',
+                    transition: 'all 0.3s ease',
+                    outline: 'none',
+                    background: 'rgba(255,255,255,0.8)'
+                  }}
+                  onFocus={(e) => {
+                    e.target.style.borderColor = '#FF6B35';
+                    e.target.style.boxShadow = '0 0 0 3px rgba(255, 107, 53, 0.1)';
+                  }}
+                  onBlur={(e) => {
+                    e.target.style.borderColor = '#e2e8f0';
+                    e.target.style.boxShadow = 'none';
+                  }}
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={!loginCode.trim()}
                 style={{
                   width: '100%',
-                  padding: '14px 16px',
-                  border: '2px solid #e2e8f0',
+                  padding: '14px',
+                  background: loginCode.trim() ? 'linear-gradient(135deg, #FF6B35, #FF8C42)' : '#a0aec0',
+                  color: 'white',
+                  border: 'none',
                   borderRadius: '10px',
                   fontSize: '16px',
-                  boxSizing: 'border-box',
+                  fontWeight: '600',
+                  cursor: loginCode.trim() ? 'pointer' : 'not-allowed',
                   transition: 'all 0.3s ease',
-                  outline: 'none',
-                  background: 'rgba(255,255,255,0.8)'
+                  boxShadow: loginCode.trim() ? '0 4px 15px rgba(255, 107, 53, 0.4)' : 'none',
+                  transform: 'translateY(0)'
                 }}
-                onFocus={(e) => {
-                  e.target.style.borderColor = '#FF6B35';
-                  e.target.style.boxShadow = '0 0 0 3px rgba(255, 107, 53, 0.1)';
+                onMouseEnter={(e) => {
+                  if (loginCode.trim()) {
+                    e.target.style.transform = 'translateY(-2px)';
+                    e.target.style.boxShadow = '0 6px 20px rgba(255, 107, 53, 0.5)';
+                  }
                 }}
-                onBlur={(e) => {
-                  e.target.style.borderColor = '#e2e8f0';
-                  e.target.style.boxShadow = 'none';
+                onMouseLeave={(e) => {
+                  e.target.style.transform = 'translateY(0)';
+                  e.target.style.boxShadow = loginCode.trim() ? '0 4px 15px rgba(255, 107, 53, 0.4)' : 'none';
                 }}
-              />
+              >
+                🔑 LOGIN
+              </button>
+            </form>
+            <div style={{ marginTop: '20px', textAlign: 'center' }}>
+              <button
+                type="button"
+                onClick={() => setIsSignup(true)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#3182ce',
+                  fontSize: '14px',
+                  cursor: 'pointer',
+                  textDecoration: 'underline'
+                }}
+              >
+                Create an account
+              </button>
             </div>
 
-            <button
-              type="submit"
-              disabled={!loginCode.trim()}
-              style={{
-                width: '100%',
-                padding: '14px',
-                background: loginCode.trim() ? 'linear-gradient(135deg, #FF6B35, #FF8C42)' : '#a0aec0',
-                color: 'white',
-                border: 'none',
-                borderRadius: '10px',
-                fontSize: '16px',
-                fontWeight: '600',
-                cursor: loginCode.trim() ? 'pointer' : 'not-allowed',
-                transition: 'all 0.3s ease',
-                boxShadow: loginCode.trim() ? '0 4px 15px rgba(255, 107, 53, 0.4)' : 'none',
-                transform: 'translateY(0)'
-              }}
-              onMouseEnter={(e) => {
-                if (loginCode.trim()) {
-                  e.target.style.transform = 'translateY(-2px)';
-                  e.target.style.boxShadow = '0 6px 20px rgba(255, 107, 53, 0.5)';
-                }
-              }}
-              onMouseLeave={(e) => {
-                e.target.style.transform = 'translateY(0)';
-                e.target.style.boxShadow = loginCode.trim() ? '0 4px 15px rgba(255, 107, 53, 0.4)' : 'none';
-              }}
-            >
-              🔑 LOGIN
-            </button>
-          </form>
 
-          <div style={{
-            marginTop: '20px',
-            padding: '16px',
-            background: 'linear-gradient(135deg, #e6fffa, #f0fff4)',
-            borderRadius: '10px',
-            border: '1px solid #9ae6b4'
-          }}>
-            <p style={{ fontSize: '14px', color: '#2f855a', margin: '0 0 8px', fontWeight: '600' }}>
-              💡 Demo Access
-            </p>
-            <p style={{ fontSize: '13px', color: '#38a169', margin: 0 }}>
-              Code: <strong>DELIVERY2025</strong>
-            </p>
+            <div style={{
+              marginTop: '20px',
+              padding: '16px',
+              background: 'linear-gradient(135deg, #e6fffa, #f0fff4)',
+              borderRadius: '10px',
+              border: '1px solid #9ae6b4'
+            }}>
+              <p style={{ fontSize: '14px', color: '#2f855a', margin: '0 0 8px', fontWeight: '600' }}>
+                💡 Demo Access
+              </p>
+              <p style={{ fontSize: '13px', color: '#38a169', margin: 0 }}>
+                Code: <strong>DELIVERY2025</strong>
+              </p>
+            </div>
           </div>
+
         </div>
-      </div>
-    );
+      );
+    } else {
+
+      return (
+        <Signup setIsSignup={setIsSignup} />
+      )
+    }
   }
 
   // Main App - Dashboard
@@ -498,7 +581,7 @@ export default function App() {
               Logout
             </button>
           </div>
-          
+
           {/* Quick Stats */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '15px' }}>
             <div style={{
@@ -513,7 +596,7 @@ export default function App() {
               <div style={{ fontSize: '18px', fontWeight: '700' }}>₹{partner.todayEarnings}</div>
               <div style={{ fontSize: '12px', opacity: 0.8 }}>Today's Earnings</div>
             </div>
-            
+
             <div style={{
               background: 'rgba(255,255,255,0.15)',
               backdropFilter: 'blur(10px)',
@@ -526,7 +609,7 @@ export default function App() {
               <div style={{ fontSize: '18px', fontWeight: '700' }}>{partner.todayDeliveries}</div>
               <div style={{ fontSize: '12px', opacity: 0.8 }}>Deliveries</div>
             </div>
-            
+
             <div style={{
               background: 'rgba(255,255,255,0.15)',
               backdropFilter: 'blur(10px)',
@@ -560,7 +643,7 @@ export default function App() {
               🟢 LIVE
             </div>
           </div>
-          
+
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             {orders.filter(order => order.status === 'new').map((order) => (
               <div key={order.id} style={{
@@ -622,7 +705,7 @@ export default function App() {
                   <p style={{ margin: '0 0 12px', fontSize: '13px', color: '#718096', paddingLeft: '16px' }}>
                     {order.storeAddress}
                   </p>
-                  
+
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
                     <div style={{ width: '8px', height: '8px', background: '#48bb78', borderRadius: '50%' }}></div>
                     <span style={{ fontWeight: '600', color: '#2d3748' }}>{order.customerName}</span>
@@ -682,7 +765,7 @@ export default function App() {
                     >
                       📞 Call
                     </button>
-                    
+
                     <button
                       onClick={() => navigateToLocation(order.storeAddress)}
                       style={{
@@ -704,7 +787,7 @@ export default function App() {
                     >
                       📍 Navigate
                     </button>
-                    
+
                     <button
                       onClick={() => acceptOrder(order.id)}
                       style={{
@@ -801,7 +884,7 @@ export default function App() {
   if (activeTab === 'analytics') {
     const weeklyEarnings = [1200, 1450, 1680, 1320, 1750, 1840, 1650];
     const weeklyDeliveries = [8, 11, 13, 9, 14, 15, 12];
-    
+
     return (
       <div style={{
         minHeight: '100vh',
@@ -836,7 +919,7 @@ export default function App() {
               <div style={{ fontSize: '14px', opacity: 0.9 }}>This Week</div>
               <div style={{ fontSize: '12px', opacity: 0.7, marginTop: '4px' }}>↗️ +15% from last week</div>
             </div>
-            
+
             <div style={{
               background: 'linear-gradient(135deg, #4299e1, #3182ce)',
               color: 'white',
@@ -860,7 +943,7 @@ export default function App() {
             boxShadow: '0 4px 20px rgba(0,0,0,0.08)'
           }}>
             <h3 style={{ margin: '0 0 20px', fontSize: '18px', fontWeight: '700' }}>Weekly Performance</h3>
-            
+
             <div style={{ marginBottom: '20px' }}>
               <p style={{ margin: '0 0 10px', fontSize: '14px', fontWeight: '600', color: '#48bb78' }}>Earnings Trend</p>
               <div style={{ display: 'flex', alignItems: 'end', gap: '8px', height: '100px' }}>
@@ -910,23 +993,23 @@ export default function App() {
             boxShadow: '0 4px 20px rgba(0,0,0,0.08)'
           }}>
             <h3 style={{ margin: '0 0 20px', fontSize: '18px', fontWeight: '700' }}>Performance Metrics</h3>
-            
+
             <div style={{ display: 'grid', gap: '16px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontSize: '14px', color: '#4a5568' }}>Average Delivery Time</span>
                 <span style={{ fontSize: '16px', fontWeight: '700', color: '#48bb78' }}>22 min</span>
               </div>
-              
+
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontSize: '14px', color: '#4a5568' }}>Customer Rating</span>
                 <span style={{ fontSize: '16px', fontWeight: '700', color: '#ed8936' }}>⭐ 4.8/5</span>
               </div>
-              
+
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontSize: '14px', color: '#4a5568' }}>Acceptance Rate</span>
                 <span style={{ fontSize: '16px', fontWeight: '700', color: '#4299e1' }}>94%</span>
               </div>
-              
+
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontSize: '14px', color: '#4a5568' }}>On-time Delivery</span>
                 <span style={{ fontSize: '16px', fontWeight: '700', color: '#805ad5' }}>97%</span>
@@ -1154,7 +1237,7 @@ export default function App() {
             {partner.name}
           </h2>
           <p style={{ margin: '0 0 16px', color: '#718096' }}>Delivery Partner</p>
-          
+
           <div style={{ display: 'flex', justifyContent: 'center', gap: '20px' }}>
             <div style={{ textAlign: 'center' }}>
               <div style={{ fontSize: '18px', fontWeight: '700', color: '#ed8936' }}>⭐ {partner.rating}</div>
@@ -1188,13 +1271,13 @@ export default function App() {
           boxShadow: '0 4px 20px rgba(0,0,0,0.08)'
         }}>
           <h3 style={{ margin: '0 0 16px', fontSize: '18px', fontWeight: '700' }}>Account Details</h3>
-          
+
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px', background: '#f7fafc', borderRadius: '8px' }}>
               <span style={{ fontWeight: '600', color: '#4a5568' }}>📞 Phone:</span>
               <span style={{ color: '#2d3748' }}>{partner.phone}</span>
             </div>
-            
+
             <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px', background: '#f7fafc', borderRadius: '8px' }}>
               <span style={{ fontWeight: '600', color: '#4a5568' }}>📧 Email:</span>
               <span style={{ color: '#2d3748' }}>{partner.email}</span>
@@ -1222,7 +1305,7 @@ export default function App() {
           boxShadow: '0 4px 20px rgba(0,0,0,0.08)'
         }}>
           <h3 style={{ margin: '0 0 16px', fontSize: '18px', fontWeight: '700' }}>Settings</h3>
-          
+
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <button style={{
               padding: '16px',
@@ -1237,7 +1320,7 @@ export default function App() {
             }}>
               🔔 Notification Preferences
             </button>
-            
+
             <button style={{
               padding: '16px',
               background: 'transparent',
@@ -1251,7 +1334,7 @@ export default function App() {
             }}>
               🎯 Delivery Preferences
             </button>
-            
+
             <button style={{
               padding: '16px',
               background: 'transparent',
@@ -1265,7 +1348,7 @@ export default function App() {
             }}>
               💰 Payment & Banking
             </button>
-            
+
             <button style={{
               padding: '16px',
               background: 'transparent',
@@ -1279,7 +1362,7 @@ export default function App() {
             }}>
               ❓ Help & Support
             </button>
-            
+
             <button
               onClick={handleLogout}
               style={{

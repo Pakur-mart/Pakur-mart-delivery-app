@@ -13,10 +13,11 @@ import {
   onSnapshot,
   Timestamp,
   serverTimestamp,
+  setDoc,
 } from "firebase/firestore";
 import { db } from "./firebase";
-import type { Order, DeliveryPartner, Delivery, Earnings } from "@shared/schema";
-
+import { type Order, type DeliveryPartner, type Delivery, type Earnings, insertDeliveryPartnerSchema } from "@shared/schema";
+import { v4 as uuidv4 } from "uuid";
 // Collections
 export const COLLECTIONS = {
   DELIVERY_PARTNERS: "deliveryPartners",
@@ -25,11 +26,45 @@ export const COLLECTIONS = {
   EARNINGS: "earnings",
 } as const;
 
+type DeliveryPartnerForm = {
+  name: string;
+  phone: string;
+  email: string;
+  vehicleType: string;
+  vehicleNumber: string;
+  password: string;
+};
+
+
+export const createDeliveryPartner = async (data: DeliveryPartnerForm): Promise<boolean> => {
+  try {
+    const id = uuidv4();
+    const docRef = doc(db, COLLECTIONS.DELIVERY_PARTNERS, id);
+
+    await setDoc(docRef, {
+      id,
+      ...data,
+      adminApproved: false,
+      status: "offline",
+      rating: 0,
+      totalDeliveries: 0,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+
+    return true;
+  } catch (error: any) {
+    console.error("Create Partner Error:", error);
+    return false;
+  }
+
+};
+
 // Delivery Partner operations
 export const getDeliveryPartner = async (id: string): Promise<DeliveryPartner | null> => {
   const docRef = doc(db, COLLECTIONS.DELIVERY_PARTNERS, id);
   const docSnap = await getDoc(docRef);
-  
+
   if (docSnap.exists()) {
     const data = docSnap.data();
     return {
@@ -39,7 +74,7 @@ export const getDeliveryPartner = async (id: string): Promise<DeliveryPartner | 
       updatedAt: data.updatedAt?.toDate(),
     } as DeliveryPartner;
   }
-  
+
   return null;
 };
 
@@ -60,9 +95,9 @@ export const getAvailableOrders = (
 ): (() => void) => {
   const q = query(
     collection(db, COLLECTIONS.ORDERS),
-    where("status", "==", "new"),
-    orderBy("createdAt", "desc")
+    where("status", "==", "confirmed")
   );
+
 
   return onSnapshot(q, (snapshot) => {
     const orders = snapshot.docs.map((doc) => {
@@ -70,11 +105,11 @@ export const getAvailableOrders = (
       return {
         ...data,
         id: doc.id,
-        createdAt: data.createdAt?.toDate(),
+
         updatedAt: data.updatedAt?.toDate(),
-        pickupTime: data.pickupTime?.toDate(),
-        deliveryTime: data.deliveryTime?.toDate(),
-        estimatedDeliveryTime: data.estimatedDeliveryTime?.toDate(),
+        // pickupTime: data.pickupTime?.toDate(),
+        // deliveryTime: data.deliveryTime?.toDate(),
+        // estimatedDeliveryTime: data.estimatedDeliveryTime?.toDate(),
       } as Order;
     });
     callback(orders);
@@ -200,3 +235,5 @@ export const addEarnings = async (earnings: Omit<Earnings, 'id'>): Promise<void>
     date: Timestamp.fromDate(earnings.date),
   });
 };
+
+

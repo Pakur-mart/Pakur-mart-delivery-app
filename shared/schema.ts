@@ -9,6 +9,7 @@ export const deliveryPartnerSchema = z.object({
   status: z.enum(['online', 'offline', 'busy']),
   vehicleType: z.string(),
   vehicleNumber: z.string(),
+  adminApproved: z.boolean(),
   rating: z.number().min(0).max(5),
   totalDeliveries: z.number(),
   createdAt: z.date(),
