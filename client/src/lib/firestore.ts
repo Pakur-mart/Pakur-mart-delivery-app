@@ -36,13 +36,12 @@ type DeliveryPartnerForm = {
 };
 
 
-export const createDeliveryPartner = async (data: DeliveryPartnerForm): Promise<boolean> => {
+export const createDeliveryPartner = async (userId: string, data: Omit<DeliveryPartnerForm, 'password'>): Promise<boolean> => {
   try {
-    const id = uuidv4();
-    const docRef = doc(db, COLLECTIONS.DELIVERY_PARTNERS, id);
+    const docRef = doc(db, COLLECTIONS.DELIVERY_PARTNERS, userId);
 
     await setDoc(docRef, {
-      id,
+      id: userId,
       ...data,
       adminApproved: false,
       status: "offline",
@@ -54,10 +53,8 @@ export const createDeliveryPartner = async (data: DeliveryPartnerForm): Promise<
 
     return true;
   } catch (error: any) {
-    console.error("Create Partner Error:", error);
-    return false;
+    throw error;
   }
-
 };
 
 // Delivery Partner operations
@@ -105,11 +102,7 @@ export const getAvailableOrders = (
       return {
         ...data,
         id: doc.id,
-
         updatedAt: data.updatedAt?.toDate(),
-        // pickupTime: data.pickupTime?.toDate(),
-        // deliveryTime: data.deliveryTime?.toDate(),
-        // estimatedDeliveryTime: data.estimatedDeliveryTime?.toDate(),
       } as Order;
     });
     callback(orders);

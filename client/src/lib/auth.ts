@@ -1,9 +1,19 @@
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, User } from "firebase/auth";
 import { auth } from "./firebase";
+import { createDeliveryPartner } from "./firestore";
 
 export interface AuthError {
   code: string;
   message: string;
+}
+
+export interface SignupData {
+  name: string;
+  phone: string;
+  email: string;
+  vehicleType: string;
+  vehicleNumber: string;
+  password: string;
 }
 
 export const signIn = async (email: string, password: string): Promise<User> => {
@@ -11,20 +21,28 @@ export const signIn = async (email: string, password: string): Promise<User> => 
     const result = await signInWithEmailAndPassword(auth, email, password);
     return result.user;
   } catch (error: any) {
-    // If user doesn't exist, try to create demo account for testing
-    if (error.code === 'auth/user-not-found' && email.includes('@bolpurmart.delivery')) {
-      try {
-        console.log('Creating demo account for:', email);
-        const createResult = await createUserWithEmailAndPassword(auth, email, password);
-        return createResult.user;
-      } catch (createError: any) {
-        throw {
-          code: createError.code,
-          message: createError.message,
-        } as AuthError;
-      }
-    }
+    throw {
+      code: error.code,
+      message: error.message,
+    } as AuthError;
+  }
+};
+
+export const signUp = async (data: SignupData): Promise<User> => {
+  try {
+    const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
+    const user = userCredential.user;
     
+    await createDeliveryPartner(user.uid, {
+      name: data.name,
+      phone: data.phone,
+      email: data.email,
+      vehicleType: data.vehicleType,
+      vehicleNumber: data.vehicleNumber,
+    });
+    
+    return user;
+  } catch (error: any) {
     throw {
       code: error.code,
       message: error.message,

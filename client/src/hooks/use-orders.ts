@@ -40,64 +40,6 @@ export function useOrders(partnerId?: string): OrdersState & OrdersActions {
 
     setState(prev => ({ ...prev, loading: true }));
 
-    // Demo mode - create mock orders for testing
-    if (partnerId === 'demo-user-123') {
-      const mockAvailableOrders = [
-        {
-          id: 'order-001',
-          customerId: 'cust-001',
-          customerName: 'Rahul Sharma',
-          customerPhone: '+91 9876543210',
-          customerAddress: 'House 123, Sector 15, Noida, UP 201301',
-          storeId: 'store-001',
-          storeName: 'Fresh Mart Grocery',
-          storeAddress: 'Shop 45, Central Market, Noida, UP 201301',
-          items: [
-            { id: 'item-1', name: 'Milk 1L', quantity: 2, price: 60 },
-            { id: 'item-2', name: 'Bread', quantity: 1, price: 30 },
-            { id: 'item-3', name: 'Eggs (12)', quantity: 1, price: 80 }
-          ],
-          orderValue: 170,
-          deliveryFee: 25,
-          status: 'new' as const,
-          distance: 2.5,
-          deliveryDistance: 3.2,
-          createdAt: new Date(Date.now() - 10 * 60 * 1000), // 10 minutes ago
-          updatedAt: new Date(Date.now() - 10 * 60 * 1000),
-        },
-        {
-          id: 'order-002',
-          customerId: 'cust-002',
-          customerName: 'Priya Singh',
-          customerPhone: '+91 9876543211',
-          customerAddress: 'Flat 402, Royal Heights, Sector 22, Noida, UP 201301',
-          storeId: 'store-002',
-          storeName: 'Quick Pharmacy',
-          storeAddress: 'Shop 12, Health Plaza, Noida, UP 201301',
-          items: [
-            { id: 'item-4', name: 'Paracetamol', quantity: 1, price: 15 },
-            { id: 'item-5', name: 'Hand Sanitizer', quantity: 1, price: 45 }
-          ],
-          orderValue: 60,
-          deliveryFee: 20,
-          status: 'new' as const,
-          distance: 1.8,
-          deliveryDistance: 2.1,
-          createdAt: new Date(Date.now() - 5 * 60 * 1000), // 5 minutes ago
-          updatedAt: new Date(Date.now() - 5 * 60 * 1000),
-        }
-      ];
-
-      setState(prev => ({ 
-        ...prev, 
-        availableOrders: mockAvailableOrders,
-        activeOrders: [],
-        loading: false 
-      }));
-      return;
-    }
-
-    // Subscribe to available orders
     const unsubscribeAvailable = getAvailableOrders((orders) => {
       setState(prev => ({ 
         ...prev, 
@@ -106,7 +48,6 @@ export function useOrders(partnerId?: string): OrdersState & OrdersActions {
       }));
     });
 
-    // Subscribe to active orders for this partner
     const unsubscribeActive = getPartnerActiveOrders(partnerId, (orders) => {
       setState(prev => ({ 
         ...prev, 

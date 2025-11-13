@@ -62,39 +62,7 @@ export function useAuth(): AuthState & AuthActions {
     setState(prev => ({ ...prev, loading: true, error: null }));
     
     try {
-      // Demo mode - create mock user for testing
-      if (email.includes('@bolpurmart.delivery') && password === 'demo123') {
-        const mockUser = {
-          uid: 'demo-user-123',
-          email: email,
-          emailVerified: true,
-        } as any;
-        
-        const mockDeliveryPartner = {
-          id: 'demo-user-123',
-          name: 'Demo Partner',
-          phone: email.split('@')[0],
-          email: email,
-          status: 'online' as const,
-          vehicleType: 'Bike',
-          vehicleNumber: 'DL01AB1234',
-          rating: 4.5,
-          totalDeliveries: 25,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        };
-
-        setState({
-          user: mockUser,
-          deliveryPartner: mockDeliveryPartner,
-          loading: false,
-          error: null,
-        });
-        return;
-      }
-      
       await signIn(email, password);
-      // User state will be updated via onAuthStateChanged
     } catch (error) {
       setState(prev => ({
         ...prev,

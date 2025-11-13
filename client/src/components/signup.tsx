@@ -1,5 +1,4 @@
-import { signIn } from "@/lib/auth";
-import { createDeliveryPartner } from "@/lib/firestore";
+import { signUp } from "@/lib/auth";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -17,20 +16,30 @@ export default function Signup({ setIsSignup }: { setIsSignup: (value: boolean) 
     const handleSignup = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
+        setError("");
 
-        await createDeliveryPartner({
-            email, password, phone, name, vehicleNumber, vehicleType
-        })
-
-        setTimeout(() => {
-            setLoading(false);
-
-            toast.success("Account created successfully ✅", {
-                description: "Please wait for admin approval before logging in."
+        try {
+            await signUp({
+                email,
+                password,
+                phone,
+                name,
+                vehicleNumber,
+                vehicleType
             });
 
+            setLoading(false);
+            toast.success("Account created successfully ✅", {
+                description: "You can now log in with your credentials."
+            });
             setIsSignup(false);
-        }, 1200);
+        } catch (err: any) {
+            setLoading(false);
+            setError(err.message || "Failed to create account");
+            toast.error("Signup failed", {
+                description: err.message || "Please try again"
+            });
+        }
     };
 
     return (

@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useAuth } from "@/hooks/use-auth";
 import { useOrders } from "@/hooks/use-orders";
 import { getEarnings } from "@/lib/firestore";
@@ -51,7 +52,7 @@ export default function History() {
         ]);
         setEarnings(earningsData);
       } catch (error) {
-        console.error("Failed to load history:", error);
+        // Error loading history data
       } finally {
         setLoading(false);
       }
@@ -94,9 +95,11 @@ export default function History() {
   if (!deliveryPartner) {
     return (
       <div className="p-4">
-        <div className="text-center text-muted-foreground">
-          Loading...
-        </div>
+        <Alert variant="destructive">
+          <AlertDescription>
+            Unable to load delivery partner information. Please contact support.
+          </AlertDescription>
+        </Alert>
       </div>
     );
   }

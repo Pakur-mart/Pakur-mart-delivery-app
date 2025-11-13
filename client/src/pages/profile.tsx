@@ -44,9 +44,9 @@ export default function Profile() {
   if (!deliveryPartner) {
     return (
       <div className="p-4">
-        <Alert>
+        <Alert variant="destructive">
           <AlertDescription>
-            Loading profile information...
+            Unable to load profile information. Please contact support if this persists.
           </AlertDescription>
         </Alert>
       </div>
