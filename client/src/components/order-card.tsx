@@ -8,7 +8,7 @@ import { useEffect, useState } from "react";
 
 interface OrderCardProps {
   order: Order;
-  onAccept?: (id: string) => void;
+  onAccept?: () => void;
   onDecline?: () => void;
   onMarkPickedUp?: () => void;
   onMarkEnRoute?: () => void;
@@ -59,13 +59,10 @@ export function OrderCard({
   onNavigate,
 }: OrderCardProps) {
 
-  const [isRender, setIsRender] = useState(false);
   const status = statusConfig[order.status] ?? { label: "UNKNOWN", className: "bg-gray-500" };
   const timeAgo = getTimeAgo(order.createdAt);
 
-  useEffect(() => {
-    console.log(isRender);
-  }, [isRender]);
+
 
 
   const totalValue =
@@ -160,7 +157,7 @@ export function OrderCard({
           <div className="flex gap-6">
             {order?.paymentMethod == "cash_on_delivery" && (
               <div>
-                <p className="text-xs text-muted-foreground mb-1">Order Ki Value{isRender && ""}</p>
+                <p className="text-xs text-muted-foreground mb-1">Order Ki Value</p>
                 <p className="text-lg font-bold text-foreground" data-testid={`text-order-value-${order.id}`}>
                   ₹{totalValue}
                 </p>
@@ -192,10 +189,9 @@ export function OrderCard({
                 {onAccept && (
                   <Button
                     size="sm"
-                    onClick={() => {
-                      setIsRender((prv) => !prv);
-                      onAccept(order.id)
-                    }}
+                    onClick={
+                      onAccept
+                    }
                     data-testid={`button-accept-${order.id}`}
                   >
                     Haan, Lelo

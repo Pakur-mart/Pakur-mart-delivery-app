@@ -37,6 +37,19 @@ export function useOrders(partnerId?: string): OrdersState & OrdersActions {
     error: null,
   });
 
+  const refreshActiveOrders = () => {
+    if (!partnerId) return;
+    getPartnerActiveOrders(partnerId, (orders) => {
+      setState((prev) => ({ ...prev, activeOrders: orders }));
+    });
+  };
+
+  const refreshDeliveryHistory = async () => {
+    if (!partnerId) return;
+    const history = await getDeliveryHistory(partnerId);
+    setState((prev) => ({ ...prev, deliveryHistory: history }));
+  };
+
   useEffect(() => {
     if (!partnerId) return;
 
@@ -56,10 +69,17 @@ export function useOrders(partnerId?: string): OrdersState & OrdersActions {
         activeOrders: orders
       }));
     });
+    getDeliveryHistory(partnerId).then(history => {
+      setState(prev => ({
+        ...prev,
+        deliveryHistory: history,
+      }));
+    });
 
     return () => {
       unsubscribeAvailable();
       unsubscribeActive();
+
     };
   }, [partnerId]);
 
@@ -80,6 +100,7 @@ export function useOrders(partnerId?: string): OrdersState & OrdersActions {
         status: "active",
         createdAt: new Date(),
       });
+      refreshActiveOrders();
 
     } catch (error) {
       setState(prev => ({
@@ -99,6 +120,8 @@ export function useOrders(partnerId?: string): OrdersState & OrdersActions {
         ...prev,
         availableOrders: prev.availableOrders.filter(order => order.id !== orderId),
       }));
+
+      refreshActiveOrders();
     } catch (error) {
       setState(prev => ({
         ...prev,
@@ -111,6 +134,7 @@ export function useOrders(partnerId?: string): OrdersState & OrdersActions {
   const markAsPickedUp = async (orderId: string): Promise<void> => {
     try {
       await updateOrderStatus(orderId, "picked_up");
+      refreshActiveOrders();
     } catch (error) {
       setState(prev => ({
         ...prev,
@@ -123,6 +147,7 @@ export function useOrders(partnerId?: string): OrdersState & OrdersActions {
   const markAsEnRoute = async (orderId: string): Promise<void> => {
     try {
       await updateOrderStatus(orderId, "en_route");
+      refreshActiveOrders();
     } catch (error) {
       setState(prev => ({
         ...prev,
@@ -148,6 +173,9 @@ export function useOrders(partnerId?: string): OrdersState & OrdersActions {
           type: "delivery_fee",
         });
       }
+
+      refreshActiveOrders();
+      await refreshDeliveryHistory();
     } catch (error) {
       setState(prev => ({
         ...prev,
@@ -191,3 +219,5 @@ export function useOrders(partnerId?: string): OrdersState & OrdersActions {
     clearError,
   };
 }
+
+

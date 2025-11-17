@@ -290,7 +290,7 @@ export const getDeliveryHistory = async (
   const deliveriesQ = query(
     collection(db, COLLECTIONS.DELIVERIES),
     where("deliveryPartnerId", "==", partnerId),
-    where("status", "==", "delivered"),
+    where("status", "==", "active"),
     orderBy("startTime", "desc")
   );
 
