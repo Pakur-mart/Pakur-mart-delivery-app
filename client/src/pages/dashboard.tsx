@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Truck, IndianRupee, Star } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useEffect, useState } from "react";
 
 export default function DashboardPage() {
   const { deliveryPartner } = useAuth();
@@ -21,6 +22,57 @@ export default function DashboardPage() {
     markAsPickedUp,
     markAsDelivered,
   } = useOrders(deliveryPartner?.id);
+
+  const [notifications, setNotifications] = useState<
+    { id: string; text: string; time: string; order?: any }[]
+  >([]);
+
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [showNotifications, setShowNotifications] = useState(false);
+
+  useEffect(() => {
+    if (availableOrders.length === 0) return;
+
+    setNotifications((prev) => {
+
+
+      const confirmedOrders = availableOrders.filter(
+        (order) => order.status === "confirmed"
+      );
+
+
+      const newOrders = confirmedOrders.filter(
+        (order) => !prev.some((n) => n.order?.id === order.id)
+      );
+
+
+      if (newOrders.length === 0) return prev;
+
+      newOrders.forEach((order) => {
+        const totalPrice =
+          order.items.reduce((s, i) => s + i.price * i.quantity, 0) +
+          order.deliveryFee;
+
+        toast({
+          title: "🔥 Order Confirmed!",
+          description: `${order.customerAddress} - ₹${totalPrice}`,
+        });
+      });
+
+      setUnreadCount((u) => u + newOrders.length);
+
+      return [
+        ...newOrders.map((order) => ({
+          id: Date.now().toString() + order.id,
+          text: `Order Confirmed: ${order.items.map((i) => i.name).join(", ")}`,
+          time: new Date().toLocaleTimeString(),
+          order,
+        })),
+        ...prev,
+      ];
+    });
+  }, [availableOrders]);
+
 
 
 
@@ -153,6 +205,8 @@ export default function DashboardPage() {
             </div>
           </div>
 
+
+
           <div className="grid grid-cols-2 gap-3">
             <div className="bg-white/15 backdrop-blur-md rounded-xl p-4 border border-white/20 hover:bg-white/20 transition-all">
               <div className="flex items-center gap-2 mb-2">
@@ -173,7 +227,81 @@ export default function DashboardPage() {
               <p className="text-3xl font-bold tracking-tight">{activeOrders.length}</p>
             </div>
           </div>
+
+          {/* NOTIFICATION WRAPPER */}
+          <div className="absolute top-11 right-32 z-50 ">
+            <div className="relative">
+              <button
+                onClick={() => {
+                  setShowNotifications((prev) => !prev);
+                  setUnreadCount(0);
+                }}
+                className="p-2 bg-white/20 rounded-full backdrop-blur-md hover:bg-white/30"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="w-6 h-6 text-white"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6 6 0 10-12 0v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
+                  />
+                </svg>
+              </button>
+
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full px-1">
+                  {unreadCount}
+                </span>
+              )}
+            </div>
+
+            {/* NOTIFICATION DROPDOWN */}
+            {showNotifications && (
+              <div
+                className="absolute right-0 mt-2 w-64 max-h-64 overflow-y-auto 
+        bg-white text-black rounded-xl shadow-xl border p-2 animate-fade-in z-[9999]"
+              >
+                <p className="font-bold text-sm mb-2 border-b pb-1">Notifications</p>
+
+                {notifications.length === 0 ? (
+                  <p className="text-sm text-gray-500 text-center py-2">No notifications</p>
+                ) : (
+                  notifications.map((n) => (
+                    <div key={n.order.id} className="p-2 border-b last:border-none">
+                      <p className="text-sm font-semibold">{n.order.id}</p>
+
+                      {n.order && (
+                        <div className="text-xs text-gray-600 mt-1">
+                          <p>📍 {n.order.deliveryAddress.fullAddress}</p>
+                          <p>💰 ₹{n.order.total}</p>
+                          {/* <p>
+                            🛍{" "}
+                            {n.order.items
+                              ?.map((i: any) => `${i.name} x${i.quantity}`)
+                              .join(", ")}
+                          </p> */}
+                        </div>
+                      )}
+
+                      <p className="text-[10px] text-gray-500 mt-1">{n.time}</p>
+
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
+
+
         </CardContent>
+
+
       </Card>
 
       {error && (
