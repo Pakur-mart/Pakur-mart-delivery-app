@@ -18,6 +18,7 @@ export type Page = "dashboard" | "history" | "profile" | "edit-profile" | "vehic
 
 function AppContent() {
   const { user, loading } = useAuth();
+  useNotifications(); // Activate notifications logic
   const [activePage, setActivePage] = useState<Page>("dashboard");
 
   if (loading) {
