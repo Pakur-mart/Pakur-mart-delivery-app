@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Truck, IndianRupee, Star } from "lucide-react";
+import { Truck, IndianRupee, Star, Power } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useEffect, useState } from "react";
 import { updateDeliveryPartnerStatus } from "@/lib/firestore";
@@ -215,17 +215,25 @@ export default function DashboardPage() {
               <h2 className="text-2xl font-bold tracking-tight">
                 {deliveryPartner.name.split(' ')[0]}!
               </h2>
-              <div className="flex items-center gap-2 mt-2">
-                <Switch
-                  id="status-mode"
-                  checked={deliveryPartner.status === 'active'}
-                  onCheckedChange={handleStatusToggle}
-                  disabled={toggleLoading}
-                  className="data-[state=checked]:bg-green-500 data-[state=unchecked]:bg-slate-400"
-                />
-                <Label htmlFor="status-mode" className="text-sm font-medium cursor-pointer">
-                  {deliveryPartner.status === 'active' ? 'You are Online' : 'You are Offline'}
-                </Label>
+              <div className="flex items-center gap-3 mt-4 bg-white/10 p-2.5 rounded-xl w-fit backdrop-blur-md border border-white/10 shadow-lg">
+                <div className={`p-2 rounded-full transition-colors duration-300 ${deliveryPartner.status === 'active' ? 'bg-green-500 text-white shadow-[0_0_10px_rgba(34,197,94,0.5)]' : 'bg-slate-600/50 text-slate-300'}`}>
+                  <Power className="w-4 h-4" />
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-[10px] uppercase tracking-wider text-white/60 font-semibold mb-0.5">Current Status</span>
+                  <div className="flex items-center gap-2">
+                    <span className={`text-sm font-bold ${deliveryPartner.status === 'active' ? 'text-white' : 'text-white/70'}`}>
+                      {deliveryPartner.status === 'active' ? 'Online' : 'Offline'}
+                    </span>
+                    <Switch
+                      id="status-mode"
+                      checked={deliveryPartner.status === 'active'}
+                      onCheckedChange={handleStatusToggle}
+                      disabled={toggleLoading}
+                      className="data-[state=checked]:bg-green-500 data-[state=unchecked]:bg-slate-400 h-5 w-9"
+                    />
+                  </div>
+                </div>
               </div>
             </div>
             <div className="text-right bg-white/15 backdrop-blur-sm rounded-xl p-3 border border-white/20">
