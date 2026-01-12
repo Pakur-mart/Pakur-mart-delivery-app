@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { messaging, db } from "@/lib/firebase";
+import { messagingPromise, db } from "@/lib/firebase";
 import { getToken, onMessage } from "firebase/messaging";
 import { doc, updateDoc, arrayUnion } from "firebase/firestore";
 import { useAuth } from "./use-auth";
@@ -11,48 +11,68 @@ export function useNotifications() {
     const [permission, setPermission] = useState<NotificationPermission>("default");
 
     useEffect(() => {
-        if (!user || !messaging) return;
+        if (!user) return;
 
-        const requestPermission = async () => {
+        let unsubscribe: (() => void) | null = null;
+
+        const setupNotifications = async () => {
             try {
-                const permission = await Notification.requestPermission();
-                setPermission(permission);
+                const messaging = await messagingPromise;
+                if (!messaging) {
+                    console.log("Firebase Messaging not supported.");
+                    return;
+                }
 
-                if (permission === "granted") {
-                    const registration = await navigator.serviceWorker.ready;
-                    const token = await getToken(messaging, {
-                        vapidKey: "BJAA5ZAsjGC6dn5BnY7PRdPhZqczOXs4qitKoSZsNHPamvoAkR0w_YgdJgqkIpD22-STYpAAgaYiq7m3aSoEYGw",
-                        serviceWorkerRegistration: registration
-                    });
+                // Request Permissions
+                if ("Notification" in window) {
+                    const perm = await Notification.requestPermission();
+                    setPermission(perm);
 
-                    if (token) {
-                        console.log("FCM Token:", token);
-                        // Save token to firestore with metadata for targeted delivery
-                        const userRef = doc(db, "deliveryPartners", user.uid);
-                        await updateDoc(userRef, {
-                            fcmTokens: arrayUnion(token),
-                            lastTokenUpdate: new Date().toISOString(),
-                            platform: 'web-pwa'
-                        });
+                    if (perm === "granted") {
+                        try {
+                            // Wait for SW ready
+                            if ('serviceWorker' in navigator) {
+                                const registration = await navigator.serviceWorker.ready;
+                                const token = await getToken(messaging, {
+                                    vapidKey: "BJAA5ZAsjGC6dn5BnY7PRdPhZqczOXs4qitKoSZsNHPamvoAkR0w_YgdJgqkIpD22-STYpAAgaYiq7m3aSoEYGw",
+                                    serviceWorkerRegistration: registration
+                                });
+
+                                if (token) {
+                                    console.log("FCM Token:", token);
+                                    const userRef = doc(db, "deliveryPartners", user.uid);
+                                    await updateDoc(userRef, {
+                                        fcmTokens: arrayUnion(token),
+                                        lastTokenUpdate: new Date().toISOString(),
+                                        platform: 'web-pwa'
+                                    });
+                                }
+                            }
+                        } catch (tokenError) {
+                            console.error("Error getting FCM token:", tokenError);
+                        }
                     }
                 }
+
+                // Setup listener
+                unsubscribe = onMessage(messaging, (payload) => {
+                    console.log("Foreground message received:", payload);
+                    toast({
+                        title: payload.notification?.title || "New Message",
+                        description: payload.notification?.body,
+                    });
+                });
+
             } catch (error) {
-                console.error("Error requesting notification permission:", error);
+                console.error("Error setting up notifications:", error);
             }
         };
 
-        requestPermission();
+        setupNotifications();
 
-        // Foreground message handling
-        const unsubscribe = onMessage(messaging, (payload) => {
-            console.log("Foreground message received:", payload);
-            toast({
-                title: payload.notification?.title || "New Message",
-                description: payload.notification?.body,
-            });
-        });
-
-        return () => unsubscribe();
+        return () => {
+            if (unsubscribe) unsubscribe();
+        };
     }, [user, toast]);
 
     return { permission };

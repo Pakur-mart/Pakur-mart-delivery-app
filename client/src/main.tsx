@@ -3,6 +3,8 @@ import App from "./App";
 import "./index.css";
 import { Toaster } from 'sonner';
 
+import { ErrorBoundary } from "./components/error-boundary";
+
 // Register service worker for PWA functionality
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
@@ -13,7 +15,7 @@ if ('serviceWorker' in navigator) {
 }
 
 createRoot(document.getElementById("root")!).render(
-  <>
+  <ErrorBoundary>
     <Toaster richColors position="top-center" />
     <App />
-  </>);
+  </ErrorBoundary>);

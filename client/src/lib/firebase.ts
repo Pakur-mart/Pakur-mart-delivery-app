@@ -22,11 +22,19 @@ export const db = getFirestore(app);
 
 // Initialize Firebase Cloud Messaging (only if supported)
 let messaging: any = null;
-isSupported().then((supported) => {
-  if (supported) {
-    messaging = getMessaging(app);
+const messagingPromise = (async () => {
+  try {
+    const supported = await isSupported();
+    if (supported) {
+      messaging = getMessaging(app);
+      return messaging;
+    }
+  } catch (err) {
+    console.error('Firebase Messaging not supported:', err);
   }
-});
-export { messaging };
+  return null;
+})();
+
+export { messaging, messagingPromise };
 
 export default app;
