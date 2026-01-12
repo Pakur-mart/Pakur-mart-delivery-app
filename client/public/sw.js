@@ -1,6 +1,6 @@
-const CACHE_NAME = 'pakur-mart-delivery-v2.1';
-const STATIC_CACHE = 'static-cache-v2.1';
-const DYNAMIC_CACHE = 'dynamic-cache-v2.1';
+const CACHE_NAME = 'pakur-mart-delivery-v2.2';
+const STATIC_CACHE = 'static-cache-v2.2';
+const DYNAMIC_CACHE = 'dynamic-cache-v2.2';
 
 const STATIC_ASSETS = [
   '/',
