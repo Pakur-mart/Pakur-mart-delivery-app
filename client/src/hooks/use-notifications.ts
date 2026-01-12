@@ -21,7 +21,7 @@ export function useNotifications() {
                 if (permission === "granted") {
                     const registration = await navigator.serviceWorker.ready;
                     const token = await getToken(messaging, {
-                        vapidKey: "BM_9Z2s2q1w3e4r5t6y7u8i9o0p-1a2s3d4f5g6h7j8k9l0",
+                        vapidKey: "BJAA5ZAsjGC6dn5BnY7PRdPhZqczOXs4qitKoSZsNHPamvoAkR0w_YgdJgqkIpD22-STYpAAgaYiq7m3aSoEYGw",
                         serviceWorkerRegistration: registration
                     });
 
