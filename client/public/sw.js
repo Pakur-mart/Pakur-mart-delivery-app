@@ -1,6 +1,6 @@
-const CACHE_NAME = 'pakur-mart-delivery-v2.6';
-const STATIC_CACHE = 'static-cache-v2.6';
-const DYNAMIC_CACHE = 'dynamic-cache-v2.6';
+const CACHE_NAME = 'pakur-mart-delivery-v2.7';
+const STATIC_CACHE = 'static-cache-v2.7';
+const DYNAMIC_CACHE = 'dynamic-cache-v2.7';
 
 const STATIC_ASSETS = [
   '/',
@@ -164,7 +164,7 @@ self.addEventListener('push', (event) => {
     };
 
     event.waitUntil(
-      self.registration.showNotification(data.title || 'Pakur Mart Delivery', options)
+      self.registration.showNotification(data.title || 'Pakur Delivery Partner', options)
     );
   } catch (error) {
     console.error('Push notification error:', error);

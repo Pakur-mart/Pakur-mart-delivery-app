@@ -27,10 +27,12 @@ export function useNotifications() {
 
                     if (token) {
                         console.log("FCM Token:", token);
-                        // Save token to firestore
+                        // Save token to firestore with metadata for targeted delivery
                         const userRef = doc(db, "deliveryPartners", user.uid);
                         await updateDoc(userRef, {
-                            fcmTokens: arrayUnion(token)
+                            fcmTokens: arrayUnion(token),
+                            lastTokenUpdate: new Date().toISOString(),
+                            platform: 'web-pwa'
                         });
                     }
                 }
