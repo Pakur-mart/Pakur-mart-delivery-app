@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import { User, onAuthStateChanged } from "firebase/auth";
-import { auth } from "@/lib/firebase";
+import { auth, db } from "@/lib/firebase";
+import { doc, onSnapshot } from "firebase/firestore";
 import { signIn, signOutUser, getAuthErrorMessage, type AuthError } from "@/lib/auth";
-import { getDeliveryPartner } from "@/lib/firestore";
 import type { DeliveryPartner } from "@shared/schema";
 
 interface AuthState {
@@ -27,24 +27,42 @@ export function useAuth(): AuthState & AuthActions {
   });
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
       if (user) {
-        try {
-          const deliveryPartner = await getDeliveryPartner(user.uid);
-          setState({
+        // Set up real-time listener for delivery partner data
+        const docRef = doc(db, "deliveryPartners", user.uid);
+        const unsubscribeSnapshot = onSnapshot(docRef, (docSnap) => {
+          if (docSnap.exists()) {
+            const data = docSnap.data();
+            const partnerData = { ...data, id: docSnap.id } as DeliveryPartner;
+            setState(prev => ({
+              ...prev,
+              user,
+              deliveryPartner: partnerData,
+              loading: false,
+              error: null
+            }));
+          } else {
+            setState(prev => ({
+              ...prev,
+              user,
+              deliveryPartner: null,
+              loading: false,
+              error: "Delivery partner profile not found"
+            }));
+          }
+        }, (error) => {
+          console.error("Error fetching delivery partner:", error);
+          setState(prev => ({
+            ...prev,
             user,
-            deliveryPartner,
             loading: false,
-            error: null,
-          });
-        } catch (error) {
-          setState({
-            user,
-            deliveryPartner: null,
-            loading: false,
-            error: "Failed to load delivery partner data",
-          });
-        }
+            error: "Failed to load delivery partner data"
+          }));
+        });
+
+        // Store unsubscribe function to clean up later if needed
+        return () => unsubscribeSnapshot();
       } else {
         setState({
           user: null,
@@ -55,12 +73,12 @@ export function useAuth(): AuthState & AuthActions {
       }
     });
 
-    return unsubscribe;
+    return () => unsubscribeAuth();
   }, []);
 
   const login = async (email: string, password: string): Promise<void> => {
     setState(prev => ({ ...prev, loading: true, error: null }));
-    
+
     try {
       await signIn(email, password);
     } catch (error) {
@@ -75,7 +93,7 @@ export function useAuth(): AuthState & AuthActions {
 
   const logout = async (): Promise<void> => {
     setState(prev => ({ ...prev, loading: true, error: null }));
-    
+
     try {
       await signOutUser();
       // User state will be updated via onAuthStateChanged
